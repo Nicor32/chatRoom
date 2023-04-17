@@ -32,6 +32,8 @@ class Server:
             # exceptional：返回出现异常的活动链接
             readable, writeables, exceptional = select.select(self.inputs, self.outputs, self.inputs)
             print(readable, writeables, exceptional)
+            # print("已连接的客户端：{}".format(self.inputs))
+            print("msg_dic:{}".format(self.msg_dic))
 
             # 收处理
             for r in readable:
@@ -67,10 +69,10 @@ class Server:
 
             # 发数据：要返回给客户端的链接列表
             for w in writeables:
-                # 重链接列表中取出队列的实例
-                data_to_client = self.msg_dic[w].get()
-                # 返回给客户端数据
-                w.send(data_to_client)
+                # 遍历所有已连接客户端，将队列中的数据逐个发送给客户端
+                while not self.msg_dic[w].empty():
+                    data_to_client = self.msg_dic[w].get()
+                    w.send(data_to_client)
                 # 确保下次循环的时候writeable，不返回这个已经处理完的链接
                 self.outputs.remove(w)
 

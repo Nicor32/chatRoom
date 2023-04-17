@@ -18,5 +18,5 @@ class Client:
 
 
 if __name__ == '__main__':
-    client = Client('localhost', 8888)
+    client = Client('192.168.31.183', 10022)
     client.run()
