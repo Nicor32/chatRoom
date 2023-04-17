@@ -12,6 +12,7 @@ class Server:
         # 设置非阻塞模式
         self.server.setblocking(False)
         self.msg_dic = {}
+        self.msg_list = []
 
         # 内核检测并发链接
         self.inputs = [self.server, ]
@@ -33,7 +34,7 @@ class Server:
             readable, writeables, exceptional = select.select(self.inputs, self.outputs, self.inputs)
             print(readable, writeables, exceptional)
             # print("已连接的客户端：{}".format(self.inputs))
-            print("msg_dic:{}".format(self.msg_dic))
+            # print("msg_dic:{}".format(self.msg_dic))
 
             # 收处理
             for r in readable:
@@ -50,14 +51,20 @@ class Server:
                     # 所以要想实现客户端发数据来时server端能知道，就需要让select在检测这
                     # 个conn。
                     self.inputs.append(conn)
+                    print("inputs:".format(self.inputs))
 
                     # 初始化一个队列，后面存要返回这个客户端的数据
                     self.msg_dic[conn] = queue.Queue()
+
+                    # 放入返回的链接队列
+                    self.outputs.append(conn)
+                    print("outputs:{}".format(self.outputs))
 
                 # 接收新连接数据
                 else:
                     # 获取数据
                     data = r.recv(1024)
+                    self.msg_list.append(data)
                     # 打印数据
                     print("收到数据:", data)
 
@@ -65,16 +72,21 @@ class Server:
                     self.msg_dic[r].put(data)
 
                     # 放入返回的链接队列
-                    self.outputs.append(r)
+                    if r not in self.outputs:
+                        self.outputs.append(r)
+                    print("outputs:{}".format(self.outputs))
 
             # 发数据：要返回给客户端的链接列表
             for w in writeables:
-                # 遍历所有已连接客户端，将队列中的数据逐个发送给客户端
-                while not self.msg_dic[w].empty():
-                    data_to_client = self.msg_dic[w].get()
+                # 重链接列表中取出队列的实例
+                if len(self.msg_list) != 0:
+                    data_to_client = self.msg_list[0]
+                    print("msg_list:{}".format(self.msg_list))
                     w.send(data_to_client)
-                # 确保下次循环的时候writeable，不返回这个已经处理完的链接
-                self.outputs.remove(w)
+                    # 确保下次循环的时候writeable，不返回这个已经处理完的链接
+                    # self.outputs.remove(w)
+            if len(self.msg_list) != 0:
+                self.msg_list.pop(0)
 
             # 删除：错误链接
             for e in exceptional:
